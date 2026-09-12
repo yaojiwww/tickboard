@@ -3,3 +3,6 @@ build/
 
 # STM32CubeMX generated metadata (regenerated on each MX project generation)
 .mxproject
+
+# macOS
+.DS_Store
