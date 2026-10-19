@@ -1,60 +1,33 @@
 #include "spi.h"
 
-/**
- * @brief       ∂Àø⁄≥ı ºªØ
- * @param       Œﬁ
- * @retval      Œﬁ
- */
+/* LCD ÂºïËÑöÂàùÂßãÂåñÔºöSCK/MOSI/CS/DC/RST Âùá‰∏∫Êé®ÊåΩËæìÂá∫ */
 void LCD_GPIOInit(void)
 {
-    GPIO_InitTypeDef GPIO_InitStructure;
-    
-    LCD_SCK_CLK_ENABLE();
-    LCD_MOSI_CLK_ENABLE();
-    LCD_RES_CLK_ENABLE();
-    LCD_DC_CLK_ENABLE();
-    LCD_CS_CLK_ENABLE();
-    LCD_BLK_CLK_ENABLE();
-    
-    GPIO_InitStructure.Pin=LCD_SCK_GPIO_PIN;
-    GPIO_InitStructure.Mode=GPIO_MODE_OUTPUT_PP;
-    GPIO_InitStructure.Speed=GPIO_SPEED_FREQ_HIGH;
-    HAL_GPIO_Init(LCD_SCK_GPIO_PORT,&GPIO_InitStructure);
+    GPIO_InitTypeDef GPIO_InitStructure = {0};
 
-    GPIO_InitStructure.Pin=LCD_MOSI_GPIO_PIN;
-    GPIO_InitStructure.Mode=GPIO_MODE_OUTPUT_PP;
-    GPIO_InitStructure.Speed=GPIO_SPEED_FREQ_HIGH;
-    HAL_GPIO_Init(LCD_MOSI_GPIO_PORT,&GPIO_InitStructure);
+    __HAL_RCC_GPIOA_CLK_ENABLE();
 
-    GPIO_InitStructure.Pin=LCD_RES_GPIO_PIN;
-    GPIO_InitStructure.Mode=GPIO_MODE_OUTPUT_PP;
-    GPIO_InitStructure.Speed=GPIO_SPEED_FREQ_HIGH;
-    HAL_GPIO_Init(LCD_RES_GPIO_PORT,&GPIO_InitStructure);
+    GPIO_InitStructure.Mode  = GPIO_MODE_OUTPUT_PP;
+    GPIO_InitStructure.Speed = GPIO_SPEED_FREQ_HIGH;
+    GPIO_InitStructure.Pin   = LCD_SCK_PIN | LCD_MOSI_PIN | LCD_RES_PIN |
+                               LCD_DC_PIN  | LCD_CS_PIN;
+    HAL_GPIO_Init(GPIOA, &GPIO_InitStructure);
 
-    GPIO_InitStructure.Pin=LCD_DC_GPIO_PIN;
-    GPIO_InitStructure.Mode=GPIO_MODE_OUTPUT_PP;
-    GPIO_InitStructure.Speed=GPIO_SPEED_FREQ_HIGH;
-    HAL_GPIO_Init(LCD_DC_GPIO_PORT,&GPIO_InitStructure);
-    
-    GPIO_InitStructure.Pin=LCD_CS_GPIO_PIN;
-    GPIO_InitStructure.Mode=GPIO_MODE_OUTPUT_PP;
-    GPIO_InitStructure.Speed=GPIO_SPEED_FREQ_HIGH;
-    HAL_GPIO_Init(LCD_CS_GPIO_PORT,&GPIO_InitStructure);
+    LCD_CS_Set();
+    LCD_DC_Set();
+    LCD_SCK_Clr();
+    LCD_MOSI_Clr();
 }
 
-/**
- * @brief       IOƒ£ƒ‚SPI∑¢ÀÕ“ª∏ˆ◊÷Ω⁄ ˝æ›
- * @param       dat: –Ë“™∑¢ÀÕµƒ◊÷Ω⁄ ˝æ›
- * @retval      Œﬁ
- */
+/* ËΩØ‰ª∂ SPI ÂèëÈÄÅ‰∏Ä‰∏™Â≠óËäÇÔºåÈ´ò‰ΩçÂú®ÂâçÔºå‰∏äÂçáÊ≤øÈááÊ†∑ */
 void LCD_WR_Bus(uint8_t dat)
 {
     uint8_t i;
+
     LCD_CS_Clr();
-    for (i = 0; i < 8; i++)
+    for (i = 0; i < 8U; i++)
     {
-        LCD_SCK_Clr();
-        if (dat & 0x80)
+        if (dat & 0x80U)
         {
             LCD_MOSI_Set();
         }
@@ -62,17 +35,15 @@ void LCD_WR_Bus(uint8_t dat)
         {
             LCD_MOSI_Clr();
         }
+
         LCD_SCK_Set();
-        dat <<= 1;
+        dat <<= 1U;
+        LCD_SCK_Clr();
     }
     LCD_CS_Set();
 }
 
-/**
- * @brief       œÚ“∫æß–¥ºƒ¥Ê∆˜√¸¡Ó
- * @param       reg: “™–¥µƒ√¸¡Ó
- * @retval      Œﬁ
- */
+/* ÂÜôÂëΩ‰ª§ */
 void LCD_WR_REG(uint8_t reg)
 {
     LCD_DC_Clr();
@@ -80,11 +51,7 @@ void LCD_WR_REG(uint8_t reg)
     LCD_DC_Set();
 }
 
-/**
- * @brief       œÚ“∫æß–¥“ª∏ˆ◊÷Ω⁄ ˝æ›
- * @param       dat: “™–¥µƒ ˝æ›
- * @retval      Œﬁ
- */
+/* ÂÜô 8 ‰ΩçÊï∞ÊçÆ */
 void LCD_WR_DATA8(uint8_t dat)
 {
     LCD_DC_Set();
@@ -92,15 +59,11 @@ void LCD_WR_DATA8(uint8_t dat)
     LCD_DC_Set();
 }
 
-/**
- * @brief       œÚ“∫æß–¥“ª∏ˆ∞Î◊÷ ˝æ›
- * @param       dat: “™–¥µƒ ˝æ›
- * @retval      Œﬁ
- */
+/* ÂÜô 16 ‰ΩçÊï∞ÊçÆÔºàRGB565Ôºâ */
 void LCD_WR_DATA(uint16_t dat)
 {
     LCD_DC_Set();
-    LCD_WR_Bus(dat >> 8);
-    LCD_WR_Bus(dat & 0xFF);
+    LCD_WR_Bus((uint8_t)(dat >> 8));
+    LCD_WR_Bus((uint8_t)(dat & 0xFFU));
     LCD_DC_Set();
 }
