@@ -64,7 +64,14 @@ int main(void)
 {
 
   /* USER CODE BEGIN 1 */
-
+  /*
+   * 尽早锁存电源：此时 SystemClock_Config 还没执行，
+   * 直接操作寄存器把 PG1(PC8) 拉高，避免按键松开后掉电。
+   */
+  RCC->APB2ENR |= RCC_APB2ENR_IOPCEN;
+  (void)RCC->APB2ENR;
+  GPIOC->BSRR = GPIO_PIN_8;                                   /* ODR8 = 1 */
+  GPIOC->CRH  = (GPIOC->CRH & ~(0xFU << 0)) | (0x2U << 0);    /* PC8: 2MHz 推挽输出 */
   /* USER CODE END 1 */
 
   /* MCU Configuration--------------------------------------------------------*/
@@ -109,14 +116,14 @@ void SystemClock_Config(void)
   RCC_OscInitTypeDef RCC_OscInitStruct = {0};
   RCC_ClkInitTypeDef RCC_ClkInitStruct = {0};
 
-  /** 优先使用板上 16MHz 晶振：16MHz x 4 = 64MHz
+  /** 优先使用板上 8MHz 晶振：8MHz x 8 = 64MHz
   */
   RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSE;
   RCC_OscInitStruct.HSEState = RCC_HSE_ON;
   RCC_OscInitStruct.HSEPredivValue = RCC_HSE_PREDIV_DIV1;
   RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
   RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSE;
-  RCC_OscInitStruct.PLL.PLLMUL = RCC_PLL_MUL4;
+  RCC_OscInitStruct.PLL.PLLMUL = RCC_PLL_MUL8;
 
   if (HAL_RCC_OscConfig(&RCC_OscInitStruct) == HAL_OK)
   {

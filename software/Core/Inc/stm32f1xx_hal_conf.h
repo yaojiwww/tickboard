@@ -84,7 +84,7 @@
   *        (when HSE is used as system clock source, directly or through the PLL).
   */
 #if !defined  (HSE_VALUE)
-  #define HSE_VALUE    16000000U /*!< tickboard 板上为 16MHz 晶振 */
+  #define HSE_VALUE    8000000U /*!< tickboard 板上为 8MHz 晶振（2026-10-20 原理图） */
 #endif /* HSE_VALUE */
 
 #if !defined  (HSE_STARTUP_TIMEOUT)

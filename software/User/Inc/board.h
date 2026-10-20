@@ -8,10 +8,10 @@
  * MCU: STM32F103RCT6
  */
 
-/* WS2812 灯链：32 颗，数据经 74HCT1G125 缓冲到 LED DIN */
+/* WS2812 灯链：30 颗（2026-10-20 原理图 LED1-LED30），数据经 74HCT1G125 缓冲 */
 #define RGB_DATA_PORT       GPIOA
 #define RGB_DATA_PIN        GPIO_PIN_1
-#define RGB_LED_COUNT       32U
+#define RGB_LED_COUNT       30U
 
 /* 按键矩阵 */
 #define KEY_ROW_NUM         7U

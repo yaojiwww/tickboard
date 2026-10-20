@@ -46,6 +46,7 @@ target_link_directories(${CMAKE_PROJECT_NAME} PRIVATE
 target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     User/Src/app.c
     User/Src/board.c
+    User/Src/power.c
     User/Src/ws2812.c
     User/Src/keypad.c
     User/Src/encoder.c
