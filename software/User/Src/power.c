@@ -8,7 +8,6 @@ static uint32_t s_raw_changed_at;   /* 原始电平最后一次变化的时间 *
 static uint32_t s_pressed_at;       /* 消抖后按下的时间 */
 static uint8_t  s_armed;            /* 开机那次按下松开后才允许长按关机 */
 static uint8_t  s_fired;            /* 长按事件只触发一次 */
-static uint8_t  s_press_count;      /* 调试用：检测到的按下次数 */
 
 void Power_Init(void)
 {
@@ -37,7 +36,6 @@ void Power_Init(void)
     /* 开机时如果按键仍按着，必须先松开一次，避免“按住开机”被当成 2 秒长按 */
     s_armed          = (uint8_t)(s_raw == 0U);
     s_fired          = 0U;
-    s_press_count    = 0U;
 }
 
 void Power_Hold(void)
@@ -54,16 +52,6 @@ uint8_t Power_KeyIsDown(void)
 {
     return (HAL_GPIO_ReadPin(PWR_KEY_PORT, PWR_KEY_PIN) == GPIO_PIN_RESET)
                ? 1U : 0U;
-}
-
-uint8_t Power_IsArmed(void)
-{
-    return s_armed;
-}
-
-uint8_t Power_GetPressCount(void)
-{
-    return s_press_count;
 }
 
 uint8_t Power_Poll(void)
@@ -89,10 +77,6 @@ uint8_t Power_Poll(void)
         if (s_stable != 0U)
         {
             s_pressed_at = now;
-            if (s_press_count < 255U)
-            {
-                s_press_count++;
-            }
         }
         else
         {

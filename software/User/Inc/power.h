@@ -25,10 +25,6 @@ void Power_Release(void);
 /* 电源按键当前是否按下（低电平有效） */
 uint8_t Power_KeyIsDown(void);
 
-/* 调试用：是否已允许关机检测、已检测到的按下次数 */
-uint8_t Power_IsArmed(void);
-uint8_t Power_GetPressCount(void);
-
 /*
  * 每 10ms 调用一次。
  * 返回 1 表示长按达到 PWR_LONG_PRESS_MS，可以执行关机。

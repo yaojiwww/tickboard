@@ -1,31 +1,34 @@
 #include "keypad.h"
 
 /*
- * 7 行 x 6 列，行线经按键和 1N4148WS 二极管接到列线。
- * 二极管方向：ROW -> COL，因此扫描方式为：
+ * 3 行 x 10 列矩阵（2026-10-20 原理图）。
+ * 行线经按键和 1N4148WS 二极管接到列线，方向 ROW -> COL，因此扫描方式：
  *   当前行输出高电平，其余行输出低电平；列线下拉输入，读到高电平即按下。
- * K1..K30 = ROW1..ROW5 的 6 列；K31 = ROW6/COL1；K32 = ROW7/COL1。
+ * K1..K30 = ROW1..ROW3 的 COL1..COL10，K(row,col) = row*10 + col + 1，
+ * 第 K 键对应第 K 颗 WS2812（数组下标 K-1）。
  */
+
 static GPIO_TypeDef *const s_row_port[KEY_ROW_NUM] = {
-    GPIOB, GPIOB, GPIOB, GPIOB, GPIOB, GPIOC, GPIOC
+    GPIOB, GPIOC, GPIOC
 };
 static const uint16_t s_row_pin[KEY_ROW_NUM] = {
-    GPIO_PIN_0, GPIO_PIN_1, GPIO_PIN_2, GPIO_PIN_10,
     GPIO_PIN_11, GPIO_PIN_6, GPIO_PIN_7
 };
 static GPIO_TypeDef *const s_col_port[KEY_COL_NUM] = {
-    GPIOC, GPIOC, GPIOC, GPIOC, GPIOC, GPIOC
+    GPIOC, GPIOC, GPIOC, GPIOC, GPIOC, GPIOC,
+    GPIOB, GPIOB, GPIOB, GPIOB
 };
 static const uint16_t s_col_pin[KEY_COL_NUM] = {
-    GPIO_PIN_0, GPIO_PIN_1, GPIO_PIN_2, GPIO_PIN_3, GPIO_PIN_4, GPIO_PIN_5
+    GPIO_PIN_0, GPIO_PIN_1, GPIO_PIN_2, GPIO_PIN_3, GPIO_PIN_4, GPIO_PIN_5,
+    GPIO_PIN_0, GPIO_PIN_1, GPIO_PIN_2, GPIO_PIN_10
 };
 
-static uint8_t s_candidate[KEY_ROW_NUM];
-static uint8_t s_candidate_cnt[KEY_ROW_NUM];
-static uint8_t s_stable[KEY_ROW_NUM];
+static uint16_t s_candidate[KEY_ROW_NUM];
+static uint8_t  s_candidate_cnt[KEY_ROW_NUM];
+static uint16_t s_stable[KEY_ROW_NUM];
 static uint32_t s_mask;
 static uint32_t s_last_mask;
-static uint8_t  s_last_key;
+static uint32_t s_rising;
 
 void Keypad_Init(void)
 {
@@ -37,37 +40,30 @@ void Keypad_Init(void)
     /* 行线：推挽输出，默认低 */
     gpio.Mode  = GPIO_MODE_OUTPUT_PP;
     gpio.Speed = GPIO_SPEED_FREQ_LOW;
-    gpio.Pin   = GPIO_PIN_0 | GPIO_PIN_1 | GPIO_PIN_2 | GPIO_PIN_10 | GPIO_PIN_11;
+    gpio.Pin   = GPIO_PIN_11;
     HAL_GPIO_Init(GPIOB, &gpio);
-    HAL_GPIO_WritePin(GPIOB, gpio.Pin, GPIO_PIN_RESET);
+    HAL_GPIO_WritePin(GPIOB, GPIO_PIN_11, GPIO_PIN_RESET);
 
     gpio.Pin = GPIO_PIN_6 | GPIO_PIN_7;
     HAL_GPIO_Init(GPIOC, &gpio);
     HAL_GPIO_WritePin(GPIOC, gpio.Pin, GPIO_PIN_RESET);
 
-    /* 列线：下拉输入 */
+    /* 列线：下拉输入（COL1-6 在 GPIOC，COL7-10 在 GPIOB） */
     gpio.Mode = GPIO_MODE_INPUT;
     gpio.Pull = GPIO_PULLDOWN;
     gpio.Pin  = GPIO_PIN_0 | GPIO_PIN_1 | GPIO_PIN_2 |
                 GPIO_PIN_3 | GPIO_PIN_4 | GPIO_PIN_5;
     HAL_GPIO_Init(GPIOC, &gpio);
+
+    gpio.Pin = GPIO_PIN_0 | GPIO_PIN_1 | GPIO_PIN_2 | GPIO_PIN_10;
+    HAL_GPIO_Init(GPIOB, &gpio);
+
+    s_mask      = 0U;
+    s_last_mask = 0U;
+    s_rising    = 0U;
 }
 
-/* 行/列 -> 键号，未安装的位置返回 0 */
-static uint8_t key_number(uint8_t row, uint8_t col)
-{
-    if (row < 5U)
-    {
-        return (uint8_t)(row * KEY_COL_NUM + col + 1U);
-    }
-    if (col == 0U)
-    {
-        return (row == 5U) ? 31U : 32U;
-    }
-    return 0U;
-}
-
-static void scan_raw(uint8_t *raw)
+static void scan_raw(uint16_t *raw)
 {
     uint8_t r, c, i;
 
@@ -87,7 +83,7 @@ static void scan_raw(uint8_t *raw)
         {
             if (s_col_port[c]->IDR & s_col_pin[c])
             {
-                raw[r] |= (uint8_t)(1U << c);
+                raw[r] |= (uint16_t)(1U << c);
             }
         }
     }
@@ -100,7 +96,7 @@ static void scan_raw(uint8_t *raw)
 
 uint8_t Keypad_Scan(void)
 {
-    uint8_t raw[KEY_ROW_NUM];
+    uint16_t raw[KEY_ROW_NUM];
     uint8_t r, c;
     uint8_t changed = 0U;
 
@@ -136,33 +132,15 @@ uint8_t Keypad_Scan(void)
         {
             for (c = 0; c < KEY_COL_NUM; c++)
             {
-                if (s_stable[r] & (1U << c))
+                if (s_stable[r] & (uint16_t)(1U << c))
                 {
-                    uint8_t key = key_number(r, c);
-                    if (key != 0U)
-                    {
-                        s_mask |= (1UL << (key - 1U));
-                    }
+                    s_mask |= (1UL << (r * KEY_COL_NUM + c));
                 }
             }
         }
 
-        /* 记录新按下的键，便于界面显示 */
-        {
-            uint32_t newly = s_mask & ~s_last_mask;
-            if (newly != 0U)
-            {
-                for (c = 0U; c < 32U; c++)
-                {
-                    if (newly & (1UL << c))
-                    {
-                        s_last_key = (uint8_t)(c + 1U);
-                        break;
-                    }
-                }
-            }
-            s_last_mask = s_mask;
-        }
+        s_rising    = s_mask & ~s_last_mask;
+        s_last_mask = s_mask;
     }
 
     return changed;
@@ -173,20 +151,7 @@ uint32_t Keypad_GetMask(void)
     return s_mask;
 }
 
-uint8_t Keypad_GetPressedCount(void)
+uint32_t Keypad_GetRisingMask(void)
 {
-    uint32_t m = s_mask;
-    uint8_t n = 0U;
-
-    while (m != 0U)
-    {
-        m &= (m - 1U);
-        n++;
-    }
-    return n;
-}
-
-uint8_t Keypad_GetLastKey(void)
-{
-    return s_last_key;
+    return s_rising;
 }

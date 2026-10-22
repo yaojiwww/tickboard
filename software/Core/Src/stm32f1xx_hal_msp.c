@@ -71,9 +71,8 @@ void HAL_MspInit(void)
 
   /* System interrupt init*/
 
-  /** DISABLE: JTAG-DP Disabled and SW-DP Disabled
-  */
-  __HAL_AFIO_REMAP_SWJ_DISABLE();
+  /* 保留 SWD 调试口：关闭 JTAG，保留 SW-DP，方便后续烧录和调试 */
+  __HAL_AFIO_REMAP_SWJ_NOJTAG();
 
   /* USER CODE BEGIN MspInit 1 */
 
